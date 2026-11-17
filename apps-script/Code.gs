@@ -502,7 +502,19 @@ function doPost(e) {
   }
   return respond(out);
 }
-function doGet() { return respond({ ok: true, status: 200, data: { service: 'Gift Registry API', ready: !!(prop('SHEET_ID') && prop('JWT_SECRET') && prop('PEPPER')) } }); }
+// Browsers read replies from GET requests across sites without trouble, so the website sends each call as ?r=<json>.
+function doGet(e) {
+  var raw = e && e.parameter && e.parameter.r;
+  if (!raw) return respond({ ok: true, status: 200, data: { service: 'Gift Registry API', ready: !!(prop('SHEET_ID') && prop('JWT_SECRET') && prop('PEPPER')) } });
+  var out;
+  try { out = dispatch(JSON.parse(raw)); }
+  catch (err) {
+    if (err instanceof HttpError) out = { ok: false, status: err.status, error: err.message };
+    else if (err instanceof SyntaxError) out = { ok: false, status: 400, error: 'Bad request' };
+    else { console.error(err && err.stack ? err.stack : String(err)); out = { ok: false, status: 500, error: 'Something went wrong on our side. Please try again.' }; }
+  }
+  return respond(out);
+}
 
 /* ============================== one-time setup and self-test ============================== */
 function onOpen() {
@@ -540,8 +552,10 @@ function selfTest() {
   try {
     var tricky = ['=1+1', '+5', '-3', '@x', '00123', '3/14/2026', 'TRUE'];
     var rg = sh.getRange(1, 1, 1, tricky.length); rg.setNumberFormat('@'); rg.setValues([tricky]);
-    var back = sh.getRange(1, 1, 1, tricky.length).getValues()[0].map(norm);
-    check('text-looking input is stored as plain text', JSON.stringify(back) === JSON.stringify(tricky));
+    SpreadsheetApp.flush();
+    var raw = sh.getRange(1, 1, 1, tricky.length).getValues()[0], back = raw.map(norm), bad = [];
+    tricky.forEach(function (t, i) { if (back[i] !== t) bad.push('wrote "' + t + '" but read back "' + back[i] + '" (' + Object.prototype.toString.call(raw[i]).slice(8, -1) + ')'); });
+    check('text-looking input is stored as plain text' + (bad.length ? ' -> ' + bad.join('; ') : ''), !bad.length);
     var t0 = Date.now(), h = hashPassword('correct horse battery', 'abcdef0123456789'), ms = Date.now() - t0;
     check('password hash round trip (' + ms + ' ms per hash)', verifyPassword('correct horse battery', h) && !verifyPassword('wrong', h));
     var tok = signToken({ id: 'u1', name: 'T', role: 'guest' }), u = readToken(tok);

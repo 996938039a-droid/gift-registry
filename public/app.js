@@ -26,21 +26,23 @@
   function tokenGet() { try { return localStorage.getItem("gr_token") || ""; } catch (e) { return S.tokenMem || ""; } }
   function tokenSet(t) { S.tokenMem = t; try { if (t) localStorage.setItem("gr_token", t); else localStorage.removeItem("gr_token"); } catch (e) { /* private mode: keep in memory */ } }
   function busy(d) { pending += d; document.body.classList.toggle("busy", pending > 0); }
-  // One POST per call, sent as plain text so the browser needs no CORS preflight (required by Apps Script web apps).
+  // One GET per call (?r=<json>): a plain GET needs no CORS preflight and Google lets any site read the reply.
   function api(path, body) {
     if (!API_URL) return Promise.reject(Object.assign(new Error("The site is not connected yet. Set the web app address in config.js."), { status: 0 }));
     var q = {}, i = path.indexOf("?");
     if (i >= 0) { new URLSearchParams(path.slice(i + 1)).forEach(function (v, k) { q[k] = v; }); path = path.slice(0, i); }
     var payload = { method: body === undefined ? "GET" : "POST", path: path, query: q, body: body === undefined ? {} : body, token: tokenGet() };
+    var url = API_URL + (API_URL.indexOf("?") < 0 ? "?" : "&") + "r=" + encodeURIComponent(JSON.stringify(payload)) + "&_=" + Date.now();
+    if (url.length > 7500) return Promise.reject(Object.assign(new Error("That is too much text to send at once. Please shorten it."), { status: 413 }));
     busy(1);
-    return fetch(API_URL, { method: "POST", body: JSON.stringify(payload), redirect: "follow" }).then(function (r) {
+    return fetch(url, { method: "GET", redirect: "follow", cache: "no-store" }).then(function (r) {
       return r.text().then(function (t) {
         var j; try { j = JSON.parse(t); } catch (e) { throw Object.assign(new Error("The server sent an unexpected reply. If you just changed the script, redeploy it as a new version."), { status: 502 }); }
         if (!j.ok) { if (j.status === 401) tokenSet(""); throw Object.assign(new Error(j.error || "Request failed"), { status: j.status }); }
         if (j.data && j.data.token) { tokenSet(j.data.token); delete j.data.token; }
         return j.data;
       });
-    }, function () { throw Object.assign(new Error("Could not reach the server. Check your connection and try again."), { status: 0 }); }).then(function (d) { busy(-1); return d; }, function (e) { busy(-1); throw e; });
+    }, function () { throw Object.assign(new Error("Could not reach the server. Check your connection. If it keeps happening, open /check.html on this site."), { status: 0 }); }).then(function (d) { busy(-1); return d; }, function (e) { busy(-1); throw e; });
   }
   function setPath(path, val) { var p = path.split("."), o = S; for (var i = 0; i < p.length - 1; i++) o = o[p[i]]; o[p[p.length - 1]] = val; }
   function go(hash) { if (location.hash === hash) route(); else location.hash = hash; }

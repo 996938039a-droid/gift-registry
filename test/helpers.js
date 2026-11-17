@@ -4,7 +4,7 @@ const rt = createRuntime();
 function call(method, p, body, jar) {
   const q = {}; let pathOnly = p;
   if (p.includes('?')) { const [a, b] = p.split('?'); pathOnly = a; new URLSearchParams(b).forEach((v, k) => (q[k] = v)); }
-  const out = rt.post({ method, path: pathOnly, query: q, body: body || {}, token: jar && jar.token });
+  const out = rt.get({ method, path: pathOnly, query: q, body: body || {}, token: jar && jar.token });
   if (out.ok && out.data && out.data.token && jar) jar.token = out.data.token;
   return Promise.resolve({ status: out.status, body: out.ok ? out.data : { error: out.error } });
 }

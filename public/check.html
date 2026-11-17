@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Connection check</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:640px;margin:24px auto;padding:0 16px;background:#13101c;color:#eee}
+.row{padding:12px 14px;border-radius:10px;margin:10px 0;background:#201b2e}.ok{border-left:4px solid #4ade80}.bad{border-left:4px solid #ff6b81}
+code{background:#000;padding:2px 5px;border-radius:4px;word-break:break-all}small{color:#aaa}</style></head>
+<body><h1>Connection check</h1><p><small>Open this page on your live site at /check.html. It tests the same call the app makes.</small></p>
+<div id="out"></div><script src="config.js"></script><script>
+var out=document.getElementById("out"),U=(window.GR_API_URL||"").trim();
+function row(ok,t){var d=document.createElement("div");d.className="row "+(ok?"ok":"bad");d.innerHTML=t;out.appendChild(d);}
+if(!U){row(false,"<b>config.js has no web app address.</b> Paste it between the quotes.");}
+else{
+ row(/\/exec$/.test(U),"Address: <code>"+U+"</code>"+(/\/exec$/.test(U)?"":"<br>It must end in <code>/exec</code> (not /dev).")) ;
+ fetch(U+"?r="+encodeURIComponent(JSON.stringify({method:"GET",path:"/registry/peek",query:{slug:"check"},body:{},token:""}))+"&_="+Date.now(),{redirect:"follow",cache:"no-store"})
+ .then(function(r){return r.text().then(function(t){
+   var j;try{j=JSON.parse(t)}catch(e){row(false,"<b>Reached Google but did not get the script's reply.</b><br>Usually the deployment's access is not <b>Anyone</b>, or it has not been authorised. First 200 characters:<br><code>"+t.slice(0,200).replace(/</g,"&lt;")+"</code>");return;}
+   row(true,"<b>Connected.</b> The script answered: <code>"+t.slice(0,160).replace(/</g,"&lt;")+"</code><br><small>A 'not found' message here is fine. It means the script works.</small>");});})
+ .catch(function(e){row(false,"<b>The browser was blocked from reading the reply.</b> ("+e+")<br>This nearly always means the deployment's <b>Who has access</b> is not <b>Anyone</b>, so Google sent a sign-in page. Open Deploy &gt; Manage deployments &gt; Edit, set <b>Anyone</b>, choose <b>New version</b>, Deploy.");});
+}
+</script></body></html>

@@ -67,6 +67,7 @@ function createRuntime(opts) {
   return {
     sandbox, state,
     // Send one request the way the browser does (one JSON text body) and parse the reply.
+    get(request) { const out = sandbox.doGet({ parameter: { r: typeof request === 'string' ? request : JSON.stringify(request) } }); return JSON.parse(out.getContent()); },
     post(request) { const out = sandbox.doPost({ postData: { contents: typeof request === 'string' ? request : JSON.stringify(request) } }); return JSON.parse(out.getContent()); },
     get raw() { return state; }
   };

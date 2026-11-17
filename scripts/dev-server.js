@@ -10,7 +10,7 @@ http.createServer((req, res) => {
   const u = new URL(req.url, 'http://localhost');
   if (u.pathname === '/exec') {
     const chunks = []; req.on('data', (c) => chunks.push(c)); req.on('end', () => {
-      const out = req.method === 'POST' ? rt.post(Buffer.concat(chunks).toString()) : JSON.parse(rt.sandbox.doGet().getContent());
+      const out = req.method === 'POST' ? rt.post(Buffer.concat(chunks).toString()) : (u.searchParams.get('r') ? rt.get(u.searchParams.get('r')) : JSON.parse(rt.sandbox.doGet().getContent()));
       res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(out));
     });
     return;
